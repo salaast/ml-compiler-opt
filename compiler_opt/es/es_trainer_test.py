@@ -12,26 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Test for local ES trainer."""
-
+"""Tests for ES trainer."""
 
 from absl.testing import absltest
 from tf_agents.system import system_multiprocessing as multiprocessing
-from compiler_opt.es import trainer
+from compiler_opt.es import es_trainer, es_trainer_simple
 
 
 class TrainerTest(absltest.TestCase):
-    def test_trainer(self):
-        # modules = range(3)
-        # num_workers = 2
-        # num_iter = 1
-        # arg = 1
-        # kwarg = 2
-        # policy = 1
 
+  def test_simple_trainer(self):
+    output_policy = es_trainer_simple.train_simple(modules=range(3),
+                                                num_workers=3,
+                                                num_iter=1, arg=1,
+                                                kwarg=2, policy=1)
+    self.assertAlmostEqual(output_policy, 2.2909944487358054)
 
-        trainer.train()
+  def test_trainer(self):
+    es_trainer.train()
 
 
 if __name__ == '__main__':
-    multiprocessing.handle_test_main(absltest.main)
+  multiprocessing.handle_test_main(absltest.main)

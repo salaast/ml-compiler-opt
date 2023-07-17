@@ -4,7 +4,7 @@ import dataclasses
 import math
 import multiprocessing.pool
 import os
-from typing import Any, Callable, List, Sequence, Tuple
+from typing import Any, Callable, List, Tuple
 
 from absl import logging
 import concurrent.futures
@@ -17,14 +17,11 @@ import tf_agents  # Required for importing SM
 from compiler_opt.distributed import buffered_scheduler
 
 from compiler_opt.es import blackbox_optimizers, policy_utils
-from compiler_opt.es import utilities
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.rl import data_collector, policy_saver, corpus
 
 _DATA_THRESHOLDS = ((0.90, 0.0), (0.80, 0.6), (0.0, 1.0))
-
-_REVISIT_SAMPLE_PROBABILITY = 0.33
 
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
@@ -44,13 +41,13 @@ class BlackboxLearnerConfig:
   # What kind of ES training?
   #   - antithetic: for each perturbtation, try an antiperturbation
   #   - forward_fd: try total_num_perturbations independent perturbations
-  est_type: str
+  est_type: blackbox_optimizers.EstimatorType
 
   # Should the rewards for blackbox optimization in a single step be normalized?
   fvalues_normalization: bool
 
   # How to update optimizer hyperparameters
-  hyperparameters_update_method: str
+  hyperparameters_update_method: blackbox_optimizers.UpdateMethod
 
   # Number of top performing perturbations to select in the optimizer
   # 0 means all
@@ -165,8 +162,6 @@ class BlackboxLearner(Worker):
     self._config = config
     self._step = initial_step
     self._deadline = deadline
-
-    self._variable_shapes = [(7, 4), (7, 4), (42, 64), (64), (64, 64), (64), (64, 64), (64), (64, 64), (64), (64, 1), (1)]
 
     # While we're waiting for the ES requests, we can
     # collect samples for the next round of training.
@@ -308,21 +303,12 @@ class BlackboxLearner(Worker):
     logging.info('[%d] requests out of [%d] did not terminate.',
                  len(raw_results) - len(done_results), len(raw_results))
     
-    return raw_results, done_results, perturbations
+    return raw_results, done_results
 
   def _get_policy_as_bytes(self, perturbation: npt.NDArray[np.float32]) -> List[bytes]:
     sm = tf.saved_model.load(self._tf_policy_path)
     # devectorize the perturbation
-    start = 0
-    for i in range(len(sm.model_variables)):
-      shape = sm.model_variables[i].shape
-      length = shape[0]
-      if len(shape) == 2:
-        length *= shape[1]
-      sublist = perturbation[start:start+length]
-      start += length
-      var = np.reshape(sublist, shape)
-      sm.model_variables[i].assign(var)
+    policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
 
     sm_dir = '/tmp/sm'
     tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
@@ -359,14 +345,15 @@ class BlackboxLearner(Worker):
     if self._config.est_type == 'antithetic':
       initial_perturbations = [p for p in initial_perturbations for p in (p, -p)]
 
-    init_policies = []
+    # convert to bytes for compile job
+    perturbations_as_bytes = []
     for perturbation in initial_perturbations:
-      init_policies.append(self._get_policy_as_bytes(perturbation))
+      perturbations_as_bytes.append(self._get_policy_as_bytes(perturbation))
 
-    raw_results, done_results, perturbations = self._get_results(pool, init_policies)
-    rewards = self._get_rewards(done_results, len(perturbations))
+    raw_results, done_results = self._get_results(pool, perturbations_as_bytes)
+    rewards = self._get_rewards(done_results, len(perturbations_as_bytes))
 
-    num_pruned = _prune_skipped_perturbations(perturbations, rewards)
+    num_pruned = _prune_skipped_perturbations(perturbations_as_bytes, rewards)
     logging.info('Pruned [%d]', num_pruned)
     min_num_rewards = math.ceil(_SKIP_STEP_SUCCESS_RATIO *
                                       len(raw_results))
@@ -377,7 +364,7 @@ class BlackboxLearner(Worker):
           len(rewards), len(raw_results), min_num_rewards)
       return
 
-    self._update_model(perturbations, rewards)
+    self._update_model(initial_perturbations, rewards)
     self._log_rewards(rewards)
     self._log_tf_summary(rewards)
 

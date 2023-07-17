@@ -54,6 +54,7 @@ point obtained after conducting one optimization step.
 
 import abc
 import enum
+import gin
 import math
 
 import numpy as np
@@ -74,7 +75,7 @@ class CurrentPointEstimate(enum.Enum):
   CURRENT = 1
   AVERAGE = 2
 
-
+@gin.constants_from_enum(module='blackbox_optimizers')
 class EstimatorType(enum.Enum):
   FORWARD_FD = 1
   ANTITHETIC = 2
@@ -90,7 +91,7 @@ class RegressionType(enum.Enum):
   RIDGE = 2
   LINEAR = 3
 
-
+@gin.constants_from_enum(module='blackbox_optimizers')
 class UpdateMethod(enum.Enum):
   STATE_NORMALIZATION = 1
   NO_METHOD = 2

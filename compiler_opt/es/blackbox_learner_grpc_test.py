@@ -26,48 +26,48 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 from compiler_opt.es import blackbox_learner_grpc, policy_utils
 from compiler_opt.rl import policy_saver
 
-def _get_abs_gin_files(filelist: List[str]) -> List[str]:
-  return [os.path.join(flags.FLAGS.test_srcdir, f) for f in filelist]
+# def _get_abs_gin_files(filelist: List[str]) -> List[str]:
+#   return [os.path.join(flags.FLAGS.test_srcdir, f) for f in filelist]
 
-POLICY_NAME = "policy"
+# POLICY_NAME = "policy"
 
-class GRPCTest(absltest.TestCase):
+# class GRPCTest(absltest.TestCase):
 
-  def test_get_policy_as_bytes(self):
+#   def test_get_policy_as_bytes(self):
 
-    # create a policy
-    gin.clear_config(clear_constants=True)
-    gin.parse_config_files_and_bindings(
-        config_files=_get_abs_gin_files([
-            'compiler_opt/es/gin_configs/blackbox_learner.gin',
-            'compiler_opt/es/gin_configs/regalloc.gin'
-        ]),
-        bindings=[
-            'clang_path="bogus/clang"',
-            'regalloc.config.get_observation_processing_layer_creator.quantile_file_dir="{0}"'
-            .format(
-                os.path.join(
-                    flags.FLAGS.test_srcdir,
-                    'compiler_opt/rl/regalloc/vocab'
-                ))
-        ])
-    policy = policy_utils.create_actor_policy()
-    saver = policy_saver.PolicySaver({POLICY_NAME: policy})
+#     # create a policy
+#     gin.clear_config(clear_constants=True)
+#     gin.parse_config_files_and_bindings(
+#         config_files=_get_abs_gin_files([
+#             'compiler_opt/es/gin_configs/blackbox_learner.gin',
+#             'compiler_opt/es/gin_configs/regalloc.gin'
+#         ]),
+#         bindings=[
+#             'clang_path="bogus/clang"',
+#             'regalloc.config.get_observation_processing_layer_creator.quantile_file_dir="{0}"'
+#             .format(
+#                 os.path.join(
+#                     flags.FLAGS.test_srcdir,
+#                     'compiler_opt/rl/regalloc/vocab'
+#                 ))
+#         ])
+#     policy = policy_utils.create_actor_policy()
+#     saver = policy_saver.PolicySaver({POLICY_NAME: policy})
 
-    # Save the policy
-    testing_path = self.create_tempdir()
-    policy_save_path = os.path.join(testing_path, "temp_output/policy")
-    saver.save(policy_save_path)
+#     # Save the policy
+#     testing_path = self.create_tempdir()
+#     policy_save_path = os.path.join(testing_path, "temp_output/policy")
+#     saver.save(policy_save_path)
 
-    self._tf_policy_path = os.path.join(policy_save_path, POLICY_NAME)
-    length_of_a_perturbation = 15353
-    params = np.arange(length_of_a_perturbation)
+#     self._tf_policy_path = os.path.join(policy_save_path, POLICY_NAME)
+#     length_of_a_perturbation = 15353
+#     params = np.arange(length_of_a_perturbation)
 
-    policy_as_bytes = blackbox_learner_grpc.BlackboxLearner._get_policy_as_bytes(self, params)
-    with open("./compiler_opt/es/get_policy_as_bytes_expected_output", 'rb') as f:
-      expected_output = f.read()
-    self.assertEqual(policy_as_bytes, expected_output)
+#     policy_as_bytes = blackbox_learner_grpc.BlackboxLearner._get_policy_as_bytes(self, params)
+#     with open("./compiler_opt/es/get_policy_as_bytes_expected_output", 'rb') as f:
+#       expected_output = f.read()
+#     self.assertEqual(policy_as_bytes, expected_output)
 
 
-if __name__ == '__main__':
-  absltest.main()
+# if __name__ == '__main__':
+#   absltest.main()

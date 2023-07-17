@@ -14,8 +14,6 @@
 # limitations under the License.
 """Local ES trainer."""
 
-# import concurrent.futures
-
 from absl import logging
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager
@@ -121,7 +119,7 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
                  _PRETRAINED_POLICY_PATH.value)
     # Load the policy
     pretrained_policy = tf.saved_model.load(_PRETRAINED_POLICY_PATH.value)
-    initial_parameters = policy_utils.get_vectorized_parameters_from_loaded_policy(
+    initial_parameters = policy_utils.get_vectorized_parameters_from_policy(
         pretrained_policy)
 
   policy_parameter_dimension = policy_utils.get_vectorized_parameters_from_policy(
@@ -137,11 +135,6 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
       elements=[corpus.ModuleSpec(name='smth', size=1)],
       additional_flags=additional_compilation_flags,
       delete_flags=delete_compilation_flags)
-  
-  # corp = corpus.Corpus(
-  #   data_path=_TRAIN_CORPORA.value,
-  #   additional_flags=additional_compilation_flags,
-  #   delete_flags=delete_compilation_flags)
 
   # Construct policy saver
   saved_policy = policy_utils.create_actor_policy(greedy=True)
@@ -250,9 +243,6 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
 
 
 def main(_):
-  # Set gin files
-  # gin_folder = "./compiler_opt/es/gin_configs"
-  # gin.add_config_file_search_path(gin_folder)
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())

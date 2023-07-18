@@ -22,6 +22,7 @@ from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
 
+
 class JobStep(Worker):
   """Test worker."""
 
@@ -94,6 +95,7 @@ def train_simple(
       policy += gradient
       logging.info("policy: %s", str(policy))
     return policy
+
 
 def main(_):
   train_simple()

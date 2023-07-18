@@ -18,7 +18,6 @@
 # from tf_agents.system import system_multiprocessing as multiprocessing
 # from compiler_opt.es import es_trainer, es_trainer_simple
 
-
 # class TrainerTest(absltest.TestCase):
 
 #   def test_simple_trainer(self):
@@ -30,7 +29,6 @@
 
 #   def test_trainer(self):
 #     es_trainer.train()
-
 
 # if __name__ == '__main__':
 #   multiprocessing.handle_test_main(absltest.main)

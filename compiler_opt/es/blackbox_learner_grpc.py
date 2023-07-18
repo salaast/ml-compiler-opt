@@ -10,11 +10,10 @@ import multiprocessing.pool
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from compiler_opt.distributed import buffered_scheduler
-from compiler_opt.distributed.worker import Worker
-from compiler_opt.distributed.local import local_worker_manager
+from compiler_opt.distributed.worker import Worker, FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers, policy_utils
 from compiler_opt.rl import data_collector, policy_saver, corpus
 
@@ -103,10 +102,9 @@ def _prune_skipped_perturbations(perturbations, rewards):
 
 class Request:
   """Stores a future and its accociated tag"""
-  def __init__(self,
-               future: concurrent.futures.Future,
-               samples: List[List[corpus.ModuleSpec]],
-               tag: int):
+
+  def __init__(self, future: concurrent.futures.Future,
+               samples: List[List[corpus.ModuleSpec]], tag: int):
     self.future = future
     self.samples = samples
     self.tag = tag
@@ -180,11 +178,11 @@ class BlackboxLearner(Worker):
     return perturbations
 
   def _get_rewards(self, results: List[Request],
-                   num_proposed_perturbations: int) -> List[float]:
+                   num_proposed_perturbations: int) -> List[Optional[float]]:
     """Convert ES results to reward numbers."""
     rewards = [None] * num_proposed_perturbations
 
-    def _get_index(tag: int) -> int:
+    def _get_index(tag: int) -> Optional[int]:
       assert tag != 0
       if tag > 0:
         if self._config.est_type == 'antithetic':
@@ -203,8 +201,7 @@ class BlackboxLearner(Worker):
 
     return rewards
 
-  def _update_model(self,
-                    perturbations: List[float],
+  def _update_model(self, perturbations: List[float],
                     rewards: List[float]) -> None:
     """Update the model given a list of perturbations and rewards."""
     self._model_weights = self._blackbox_opt.run_step(
@@ -221,12 +218,9 @@ class BlackboxLearner(Worker):
     """Log tensorboard data."""
     with self._summary_writer.as_default():
       tf.summary.scalar(
-          'reward/average_reward_train',
-          np.mean(rewards),
-          step=self._step)
+          'reward/average_reward_train', np.mean(rewards), step=self._step)
 
-      tf.summary.histogram(
-          'reward/reward_train', rewards, step=self._step)
+      tf.summary.histogram('reward/reward_train', rewards, step=self._step)
 
       train_regressions = [reward for reward in rewards if reward < 0]
       tf.summary.scalar(
@@ -255,17 +249,15 @@ class BlackboxLearner(Worker):
     """Save the model."""
     logging.info('Saving the model.')
     self._policy_saver_fn(
-        parameters=self._model_weights,
-        policy_name=f'iteration{self._step}')
+        parameters=self._model_weights, policy_name=f'iteration{self._step}')
 
-  def _get_results(self,
-                   pool: local_worker_manager.LocalWorkerPoolManager,
-                   perturbations: List[bytes]
-                   ) -> Tuple[List[float], List[float]]:
+  def _get_results(
+      self, pool: FixedWorkerPool,
+      perturbations: List[bytes]) -> Tuple[List[float], List[float]]:
     if not self._samples:
       for _ in range(self._config.total_num_perturbations):
-        self._samples.append(self._sampler.sample(
-          self._config.num_ir_repeats_within_worker))
+        self._samples.append(
+            self._sampler.sample(self._config.num_ir_repeats_within_worker))
 
     # create tags
     tags = range(1, self._config.total_num_perturbations + 1)
@@ -279,9 +271,9 @@ class BlackboxLearner(Worker):
     compile_args = zip(perturbations, samples)
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-          action=lambda w, v: w.temp_compile(v[0],v[1]),
-          jobs=compile_args,
-          worker_pool=pool)
+        action=lambda w, v: w.temp_compile(v[0], v[1]),
+        jobs=compile_args,
+        worker_pool=pool)
 
     # each perturbation has tag i and its negative (if antithetic) has tag -i
     requests: List[Request] = []
@@ -289,40 +281,36 @@ class BlackboxLearner(Worker):
       requests.append(Request(future, sample, tag))
 
     early_exit = data_collector.EarlyExitChecker(
-      num_modules=len(futures),
-      deadline=self._deadline,
-      thresholds=_DATA_THRESHOLDS)
+        num_modules=len(futures),
+        deadline=self._deadline,
+        thresholds=_DATA_THRESHOLDS)
 
     # Collect next samples while we wait
     with multiprocessing.pool.ThreadPool(
-      self._config.total_num_perturbations) as tpool:
+        self._config.total_num_perturbations) as tpool:
       self._samples = []
       for _ in range(self._config.total_num_perturbations):
-        self._samples.append(tpool.apply(self._sampler.sample,
-          [self._config.num_ir_repeats_within_worker]))
+        self._samples.append(
+            tpool.apply(self._sampler.sample,
+                        [self._config.num_ir_repeats_within_worker]))
 
     # Wait for exit conditions
-    early_exit.wait(lambda:
-                    sum(request.future.done()
-                        for request in requests))
+    early_exit.wait(lambda: sum(request.future.done() for request in requests))
 
     # store the request if the future is done otherwise None
     raw_results = [_handle_future(request) for request in requests]
     # store only the completed requests
-    done_results = [result for result in raw_results
-                    if result is not None]
+    done_results = [result for result in raw_results if result is not None]
     logging.info('[%d] requests out of [%d] did not terminate.',
                  len(raw_results) - len(done_results), len(raw_results))
 
     return raw_results, done_results
 
   def _get_policy_as_bytes(self,
-                           perturbation: npt.NDArray[np.float32]
-                           ) -> List[bytes]:
+                           perturbation: npt.NDArray[np.float32]) -> bytes:
     sm = tf.saved_model.load(self._tf_policy_path)
     # devectorize the perturbation
     policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
-
     sm_dir = '/tmp/sm'
     tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
 
@@ -334,7 +322,7 @@ class BlackboxLearner(Worker):
     policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)
     return policy_obj.policy
 
-  def run_step(self, pool: local_worker_manager.LocalWorkerPoolManager) -> None:
+  def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning."""
     logging.info('-' * 80)
     logging.info('Step [%d]', self._step)
@@ -342,8 +330,9 @@ class BlackboxLearner(Worker):
     initial_perturbations = self._get_perturbations()
     # positive-negative pairs
     if self._config.est_type == 'antithetic':
-      initial_perturbations = [p for p in initial_perturbations
-                               for p in (p, -p)]
+      initial_perturbations = [
+          p for p in initial_perturbations for p in (p, -p)
+      ]
 
     # convert to bytes for compile job
     perturbations_as_bytes = []
@@ -355,13 +344,12 @@ class BlackboxLearner(Worker):
 
     num_pruned = _prune_skipped_perturbations(perturbations_as_bytes, rewards)
     logging.info('Pruned [%d]', num_pruned)
-    min_num_rewards = math.ceil(_SKIP_STEP_SUCCESS_RATIO *
-                                      len(raw_results))
+    min_num_rewards = math.ceil(_SKIP_STEP_SUCCESS_RATIO * len(raw_results))
     if len(rewards) < min_num_rewards:
       logging.warning(
           'Skipping the step, too many requests failed: %d of %d '
-          'train requests succeeded (required: %d)',
-          len(rewards), len(raw_results), min_num_rewards)
+          'train requests succeeded (required: %d)', len(rewards),
+          len(raw_results), min_num_rewards)
       return
 
     self._update_model(initial_perturbations, rewards)

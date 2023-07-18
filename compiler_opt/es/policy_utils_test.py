@@ -21,58 +21,58 @@ class ConfigTest(absltest.TestCase):
     problem_config = registry.get_configuration(implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
-      with_sqrt = False, with_z_score_normalization = False)
-    layers = tf.nest.map_structure(
-      creator,
-      time_step_spec.observation)
+        quantile_file_dir='compiler_opt/rl/inlining/vocab/',
+        with_sqrt=False,
+        with_z_score_normalization=False)
+    layers = tf.nest.map_structure(creator, time_step_spec.observation)
 
     actor_network = actor_distribution_network.ActorDistributionNetwork(
-      input_tensor_spec=time_step_spec.observation,
-      output_tensor_spec=action_spec,
-      preprocessing_layers=layers,
-      preprocessing_combiner=tf.keras.layers.Concatenate(),
-      fc_layer_params=(64, 64, 64, 64),
-      dropout_layer_params=None,
-      activation_fn=tf.keras.activations.relu)
+        input_tensor_spec=time_step_spec.observation,
+        output_tensor_spec=action_spec,
+        preprocessing_layers=layers,
+        preprocessing_combiner=tf.keras.layers.Concatenate(),
+        fc_layer_params=(64, 64, 64, 64),
+        dropout_layer_params=None,
+        activation_fn=tf.keras.activations.relu)
 
     policy = actor_policy.ActorPolicy(
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
-      actor_network=actor_network)
+        time_step_spec=time_step_spec,
+        action_spec=action_spec,
+        actor_network=actor_network)
 
     self.assertIsNotNone(policy)
-    self.assertIsInstance(policy._actor_network,
-                          actor_distribution_network.ActorDistributionNetwork)
+    self.assertIsInstance(
+        policy._actor_network,  # pylint: disable=protected-access
+        actor_distribution_network.ActorDistributionNetwork)
 
   def test_regalloc_config(self):
     problem_config = registry.get_configuration(
-      implementation=RegallocEvictionConfig)
+        implementation=RegallocEvictionConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = regalloc_config.get_observation_processing_layer_creator(
-      quantile_file_dir='compiler_opt/rl/regalloc/vocab',
-      with_sqrt = False, with_z_score_normalization = False)
-    layers = tf.nest.map_structure(
-      creator,
-      time_step_spec.observation)
+        quantile_file_dir='compiler_opt/rl/regalloc/vocab',
+        with_sqrt=False,
+        with_z_score_normalization=False)
+    layers = tf.nest.map_structure(creator, time_step_spec.observation)
 
     actor_network = regalloc_network.RegAllocNetwork(
-      input_tensor_spec=time_step_spec.observation,
-      output_tensor_spec=action_spec,
-      preprocessing_layers=layers,
-      preprocessing_combiner=tf.keras.layers.Concatenate(),
-      fc_layer_params=(64, 64, 64, 64),
-      dropout_layer_params=None,
-      activation_fn=tf.keras.activations.relu)
+        input_tensor_spec=time_step_spec.observation,
+        output_tensor_spec=action_spec,
+        preprocessing_layers=layers,
+        preprocessing_combiner=tf.keras.layers.Concatenate(),
+        fc_layer_params=(64, 64, 64, 64),
+        dropout_layer_params=None,
+        activation_fn=tf.keras.activations.relu)
 
     policy = actor_policy.ActorPolicy(
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
-      actor_network=actor_network)
+        time_step_spec=time_step_spec,
+        action_spec=action_spec,
+        actor_network=actor_network)
 
     self.assertIsNotNone(policy)
-    self.assertIsInstance(policy._actor_network,
-                          regalloc_network.RegAllocNetwork)
+    self.assertIsInstance(
+        policy._actor_network,  # pylint: disable=protected-access
+        regalloc_network.RegAllocNetwork)
 
 
 class VectorTest(absltest.TestCase):
@@ -82,25 +82,24 @@ class VectorTest(absltest.TestCase):
     problem_config = registry.get_configuration(implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
-      with_sqrt = False, with_z_score_normalization = False)
-    layers = tf.nest.map_structure(
-      creator,
-      time_step_spec.observation)
+        quantile_file_dir='compiler_opt/rl/inlining/vocab/',
+        with_sqrt=False,
+        with_z_score_normalization=False)
+    layers = tf.nest.map_structure(creator, time_step_spec.observation)
 
     actor_network = actor_distribution_network.ActorDistributionNetwork(
-      input_tensor_spec=time_step_spec.observation,
-      output_tensor_spec=action_spec,
-      preprocessing_layers=layers,
-      preprocessing_combiner=tf.keras.layers.Concatenate(),
-      fc_layer_params=(64, 64, 64, 64),
-      dropout_layer_params=None,
-      activation_fn=tf.keras.activations.relu)
+        input_tensor_spec=time_step_spec.observation,
+        output_tensor_spec=action_spec,
+        preprocessing_layers=layers,
+        preprocessing_combiner=tf.keras.layers.Concatenate(),
+        fc_layer_params=(64, 64, 64, 64),
+        dropout_layer_params=None,
+        activation_fn=tf.keras.activations.relu)
 
     policy = actor_policy.ActorPolicy(
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
-      actor_network=actor_network)
+        time_step_spec=time_step_spec,
+        action_spec=action_spec,
+        actor_network=actor_network)
     saver = policy_saver.PolicySaver({'policy': policy})
 
     # save the policy
@@ -114,7 +113,7 @@ class VectorTest(absltest.TestCase):
     policy_utils.set_vectorized_parameters_for_policy(policy, params)
     # iterate through variables and check their values
     idx = 0
-    for variable in policy.variables():
+    for variable in policy.variables():  # pylint: disable=not-callable
       nums = variable.numpy().flatten()
       for num in nums:
         if idx != num:
@@ -123,29 +122,27 @@ class VectorTest(absltest.TestCase):
 
   def test_get_vectorized_parameters_from_policy(self):
     # create a policy
-    problem_config = registry.get_configuration(
-      implementation=InliningConfig)
+    problem_config = registry.get_configuration(implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
-      with_sqrt = False, with_z_score_normalization = False)
-    layers = tf.nest.map_structure(
-      creator,
-      time_step_spec.observation)
+        quantile_file_dir='compiler_opt/rl/inlining/vocab/',
+        with_sqrt=False,
+        with_z_score_normalization=False)
+    layers = tf.nest.map_structure(creator, time_step_spec.observation)
 
     actor_network = actor_distribution_network.ActorDistributionNetwork(
-      input_tensor_spec=time_step_spec.observation,
-      output_tensor_spec=action_spec,
-      preprocessing_layers=layers,
-      preprocessing_combiner=tf.keras.layers.Concatenate(),
-      fc_layer_params=(64, 64, 64, 64),
-      dropout_layer_params=None,
-      activation_fn=tf.keras.activations.relu)
+        input_tensor_spec=time_step_spec.observation,
+        output_tensor_spec=action_spec,
+        preprocessing_layers=layers,
+        preprocessing_combiner=tf.keras.layers.Concatenate(),
+        fc_layer_params=(64, 64, 64, 64),
+        dropout_layer_params=None,
+        activation_fn=tf.keras.activations.relu)
 
     policy = actor_policy.ActorPolicy(
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
-      actor_network=actor_network)
+        time_step_spec=time_step_spec,
+        action_spec=action_spec,
+        actor_network=actor_network)
     saver = policy_saver.PolicySaver({'policy': policy})
 
     # save the policy
@@ -160,7 +157,6 @@ class VectorTest(absltest.TestCase):
     # vectorize and check if the outcome is the same as the start
     output = policy_utils.get_vectorized_parameters_from_policy(policy)
     np.testing.assert_array_almost_equal(output, params)
-
 
 
 if __name__ == '__main__':

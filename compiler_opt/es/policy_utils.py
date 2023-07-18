@@ -13,8 +13,7 @@ from compiler_opt.rl import policy_saver, registry
 
 @gin.configurable(module='policy_utils')
 def create_actor_policy(actor_network_ctor: network.DistributionNetwork,
-                        greedy: bool = False
-                        ) -> tf_policy.TFPolicy:
+                        greedy: bool = False) -> tf_policy.TFPolicy:
   """Creates an actor policy."""
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
@@ -37,9 +36,9 @@ def create_actor_policy(actor_network_ctor: network.DistributionNetwork,
 
   return policy
 
+
 def get_vectorized_parameters_from_policy(
-    policy: Union[tf_policy.TFPolicy, tf.Module]
-    ) -> npt.NDArray[np.float32]:
+    policy: Union[tf_policy.TFPolicy, tf.Module]) -> npt.NDArray[np.float32]:
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
   elif policy.model_variables:
@@ -51,17 +50,15 @@ def get_vectorized_parameters_from_policy(
 
 
 def set_vectorized_parameters_for_policy(
-    policy: Union[tf_policy.TFPolicy, tf.Module],
-    parameters: npt.NDArray[np.float32]) -> None:
+    policy: Union[tf_policy.TFPolicy,
+                  tf.Module], parameters: npt.NDArray[np.float32]) -> None:
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
   else:
     try:
       getattr(policy, 'model_variables')
     except AttributeError as e:
-      raise TypeError(
-        'policy must be a TFPolicy or a loaded SavedModel'
-        ) from e
+      raise TypeError('policy must be a TFPolicy or a loaded SavedModel') from e
     variables = policy.model_variables
 
   param_pos = 0
@@ -77,10 +74,8 @@ def set_vectorized_parameters_for_policy(
         'but only found {param_pos}.')
 
 
-def save_policy(policy: tf_policy.TFPolicy,
-                parameters: npt.NDArray[np.float32],
-                save_folder: str,
-                policy_name: str) -> None:
+def save_policy(policy: tf_policy.TFPolicy, parameters: npt.NDArray[np.float32],
+                save_folder: str, policy_name: str) -> None:
   set_vectorized_parameters_for_policy(policy, parameters)
   saver = policy_saver.PolicySaver({policy_name: policy})
   saver.save(save_folder)

@@ -40,13 +40,12 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
     "gin_bindings", [],
     "Gin bindings to override the values set in the config files.")
 _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
-                                           "List of paths to training corpora")
+                                     "List of paths to training corpora")
 
 _PRETRAINED_POLICY_PATH = flags.DEFINE_string(
     "pretrained_policy_path", None,
     "The path of the pretrained policy. If not provided, it will \
-        construct a new policy with randomly initialized weights."
-)
+        construct a new policy with randomly initialized weights.")
 
 _GREEDY = flags.DEFINE_bool(
     "greedy",
@@ -56,10 +55,8 @@ _GREEDY = flags.DEFINE_bool(
     required=True)
 
 _REQUEST_DEADLINE = flags.DEFINE_float(
-    "request_deadline", 30.0,
-    "Deadline in seconds for requests \
-    to the data collection requests."
-)
+    "request_deadline", 30.0, "Deadline in seconds for requests \
+    to the data collection requests.")
 
 _GRADIENT_ASCENT_OPTIMIZER_TYPE = flags.DEFINE_string(
     "gradient_ascent_optimizer_type", None,
@@ -77,6 +74,7 @@ _GRAD_REG_TYPE = flags.DEFINE_string(
 _GRAD_REG_ALPHA = flags.DEFINE_float(
     "grad_reg_alpha", 0.01,
     "Weight of regularization term in regression gradient.")
+
 
 @gin.configurable
 def train(additional_compilation_flags=(), delete_compilation_flags=()):
@@ -116,12 +114,10 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
     initial_parameters = policy_utils.get_vectorized_parameters_from_policy(
         pretrained_policy)
 
-  policy_parameter_dimension = (policy_utils
-                                .get_vectorized_parameters_from_policy
-                                (policy).shape[0])
+  policy_parameter_dimension = (
+      policy_utils.get_vectorized_parameters_from_policy(policy).shape[0])
   if policy_parameter_dimension != initial_parameters.shape[0]:
-    raise ValueError(
-      "Pretrained policy dimension is incorrect")
+    raise ValueError("Pretrained policy dimension is incorrect")
 
   logging.info("Parameter dimension: %s", initial_parameters.shape)
   logging.info("Initial parameters: %s", initial_parameters)
@@ -150,15 +146,14 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
     logging.info("Running momentum gradient ascent optimizer")
     # You can obtain a vanilla gradient ascent optimizer by setting momentum=0.0
     # and setting step_size to the desired learning rate.
-    gradient_ascent_optimizer = (gradient_ascent_optimization_algorithms
-                                 .MomentumOptimizer(
-                                    learner_config.step_size,
-                                    _MOMENTUM.value))
+    gradient_ascent_optimizer = (
+        gradient_ascent_optimization_algorithms.MomentumOptimizer(
+            learner_config.step_size, _MOMENTUM.value))
   elif _GRADIENT_ASCENT_OPTIMIZER_TYPE.value == "adam":
     logging.info("Running Adam gradient ascent optimizer")
-    gradient_ascent_optimizer = (gradient_ascent_optimization_algorithms.
-                                 AdamOptimizer(
-      learner_config.step_size, _BETA1.value, _BETA2.value))
+    gradient_ascent_optimizer = (
+        gradient_ascent_optimization_algorithms.AdamOptimizer(
+            learner_config.step_size, _BETA1.value, _BETA2.value))
   else:
     logging.info("No gradient ascent \
                  optimizer selected. Stopping.")
@@ -207,7 +202,7 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
         gradient_ascent_optimizer)
   else:
     raise ValueError(
-      f"Unknown optimizer: '{learner_config.blackbox_optimizer}'")
+        f"Unknown optimizer: '{learner_config.blackbox_optimizer}'")
 
   logging.info("Initializing blackbox learner.")
   learner = blackbox_learner_grpc.BlackboxLearner(
@@ -232,27 +227,22 @@ def train(additional_compilation_flags=(), delete_compilation_flags=()):
       self._arg = arg
       self._kwarg = kwarg
 
-    def temp_compile(self,
-                     policy:List[bytes],
-                     samples:List[List[corpus.ModuleSpec]]
-                     ) -> int:
+    def temp_compile(self, policy: List[bytes],
+                     samples: List[List[corpus.ModuleSpec]]) -> int:
       if policy and samples:
         function_value = 1
       return function_value
 
   with local_worker_manager.LocalWorkerPoolManager(
-      TempWorker,
-      learner_config.total_num_perturbations,
-      arg="", kwarg="") as pool:
+      TempWorker, learner_config.total_num_perturbations, arg="",
+      kwarg="") as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      _GIN_FILES.value,
-      bindings=_GIN_BINDINGS.value,
-      skip_unknown=False)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
   train()

@@ -330,24 +330,8 @@ class BlackboxLearner(Worker):
     tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
 
     # convert to tflite
-    # TODO(abenalaast): replace following with
-    # policy_saver
-    # .convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str)
     tfl_dir = '/tmp/tfl'
-    tf.io.gfile.makedirs(tfl_dir)
-    tfl_path = os.path.join(tfl_dir, 'model.tflite')
-    converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
-    converter.target_spec.supported_ops = [
-        tf.lite.OpsSet.TFLITE_BUILTINS,
-    ]
-    tfl_model = converter.convert()
-    with tf.io.gfile.GFile(tfl_path, 'wb') as f:
-      f.write(tfl_model)
-
-    # copy json to tmp dir
-    json_file = 'output_spec.json'
-    src_json = os.path.join(self._tf_policy_path, json_file)
-    tf.io.gfile.copy(src_json, os.path.join(tfl_dir, json_file), True)
+    policy_saver.convert_mlgo_model(sm_dir, tfl_dir)
 
     # create and return policy
     policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)

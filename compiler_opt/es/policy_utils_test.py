@@ -1,9 +1,8 @@
 """Tests for policy_utils."""
 
-import os
-
 from absl.testing import absltest
 import numpy as np
+import os
 import tensorflow as tf
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import actor_policy

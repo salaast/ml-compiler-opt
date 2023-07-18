@@ -1,24 +1,22 @@
 """Main routine of the RPC client coordinating RPC blackbox optimization."""
 
-import dataclasses
-import math
-import multiprocessing.pool
-import os
-from typing import Any, Callable, List, Tuple
-
 from absl import logging
 import concurrent.futures
+import dataclasses
 import gin
 import grpc
+import math
+import multiprocessing.pool
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
 import tf_agents  # Required for importing SM
-from compiler_opt.distributed import buffered_scheduler
+from typing import Any, Callable, List, Tuple
 
-from compiler_opt.es import blackbox_optimizers, policy_utils
+from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager
+from compiler_opt.es import blackbox_optimizers, policy_utils
 from compiler_opt.rl import data_collector, policy_saver, corpus
 
 _DATA_THRESHOLDS = ((0.90, 0.0), (0.80, 0.6), (0.0, 1.0))

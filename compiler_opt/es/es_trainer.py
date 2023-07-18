@@ -15,13 +15,11 @@
 """Local ES trainer."""
 
 from absl import app, flags, logging
-
 import functools
-import os
-
 import gin
-from typing import List
 import tensorflow as tf
+from typing import List
+import os
 
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager

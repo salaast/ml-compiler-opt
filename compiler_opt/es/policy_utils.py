@@ -37,7 +37,8 @@ def create_actor_policy(actor_network_ctor, greedy=False):
 
   return policy
 
-def get_vectorized_parameters_from_policy(policy: Union[tf_policy.TFPolicy, tf.Module]):
+def get_vectorized_parameters_from_policy(
+    policy: Union[tf_policy.TFPolicy, tf.Module]):
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
   elif policy.model_variables:
@@ -47,15 +48,19 @@ def get_vectorized_parameters_from_policy(policy: Union[tf_policy.TFPolicy, tf.M
   parameters = np.concatenate(parameters, axis=0)
   return parameters
 
-  
-def set_vectorized_parameters_for_policy(policy: Union[tf_policy.TFPolicy, tf.Module], parameters: npt.NDArray[np.float32]) -> None:
+
+def set_vectorized_parameters_for_policy(
+    policy: Union[tf_policy.TFPolicy, tf.Module],
+    parameters: npt.NDArray[np.float32]) -> None:
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
   else:
     try:
       getattr(policy, 'model_variables')
-    except AttributeError:
-      raise TypeError('policy must be a TFPolicy or a loaded SavedModel')
+    except AttributeError as e:
+      raise TypeError(
+        'policy must be a TFPolicy or a loaded SavedModel'
+        ) from e
     variables = policy.model_variables
 
   param_pos = 0
@@ -71,7 +76,10 @@ def set_vectorized_parameters_for_policy(policy: Union[tf_policy.TFPolicy, tf.Mo
         'but only found {param_pos}.')
 
 
-def save_policy(policy: tf_policy.TFPolicy, parameters, save_folder, policy_name):
+def save_policy(policy: tf_policy.TFPolicy,
+                parameters,
+                save_folder,
+                policy_name):
   set_vectorized_parameters_for_policy(policy, parameters)
   saver = policy_saver.PolicySaver({policy_name: policy})
   saver.save(save_folder)

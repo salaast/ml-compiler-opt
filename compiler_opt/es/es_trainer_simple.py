@@ -14,11 +14,10 @@
 # limitations under the License.
 """Local ES trainer."""
 
-from absl import app
+from absl import app, logging
 import concurrent.futures
 import numpy as np
 
-from absl import logging
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
@@ -33,10 +32,10 @@ class JobStep(Worker):
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'priority_method'
+    return method_name == "priority_method"
 
   def priority_method(self):
-    return f'priority {self._token}'
+    return f"priority {self._token}"
 
   def get_token(self):
     return self._token
@@ -59,7 +58,7 @@ class JobStep(Worker):
 
 def train_simple(
     modules=range(3), num_workers=3, num_iter=1, arg=1, kwarg=2, policy=1):
-  logging.info("initial policy: "+str(policy))
+  logging.info("initial policy: %s", str(policy))
   with local_worker_manager.LocalWorkerPoolManager(
       JobStep, num_workers, arg, kwarg=kwarg) as pool:
     for _ in range(num_iter):
@@ -71,7 +70,7 @@ def train_simple(
       # is a list of futures. Call run_step with arguments formatted as
       # [(module1, p1), (module1, p2), (module2, p1), ...] and return as
       # [m1p1 future, m1p2 future, m2p1 future, ...]
-      workers, futures = buffered_scheduler.schedule_on_worker_pool(
+      _, futures = buffered_scheduler.schedule_on_worker_pool(
           action=lambda w, v: w.run_step(v[0], v[1]),
           jobs=[(module, p) for module in modules for p in (p1, p2)],
           worker_pool=pool)
@@ -88,11 +87,12 @@ def train_simple(
         for future in done:
           results.append(future.result())
       # once all work is done, a new policy will be formed
-      logging.info("results: "+" ".join(str(result) for result in results))
+      result_list = " ".join(str(result) for result in results)
+      logging.info("results: %s", result_list)
       gradient = np.sqrt(np.average(results))
-      logging.info("gradient: "+str(gradient))
+      logging.info("gradient: %s", str(gradient))
       policy += gradient
-      logging.info("policy: "+str(policy))
+      logging.info("policy: %s", str(policy))
     return policy
 
 def main(_):

@@ -106,7 +106,10 @@ def _prune_skipped_perturbations(perturbations, rewards):
 
 class Request:
   """Stores a future and its accociated tag"""
-  def __init__(self, future: concurrent.futures.Future, samples: List[List[corpus.ModuleSpec]], tag: int):
+  def __init__(self,
+               future: concurrent.futures.Future,
+               samples: List[List[corpus.ModuleSpec]],
+               tag: int):
     self.future = future
     self.samples = samples
     self.tag = tag
@@ -114,10 +117,11 @@ class Request:
 
 
 def _handle_future(request: Request):
-  """Returns the Request if the future has completed or None if it is not immediately ready.
+  """Returns the Request if the future has completed
+  or None if it is not immediately ready.
   Logs an RpcError if there is one."""
   try:
-    result = request.future.result(timeout=0.0)
+    _ = request.future.result(timeout=0.0)
     return request
   except grpc.FutureTimeoutError:
     return None
@@ -183,7 +187,7 @@ class BlackboxLearner(Worker):
     """Convert ES results to reward numbers."""
     rewards = [None] * num_proposed_perturbations
 
-    def _get_index(tag):
+    def _get_index(tag: int) -> int:
       assert tag != 0
       if tag > 0:
         if self._config.est_type == 'antithetic':
@@ -202,7 +206,9 @@ class BlackboxLearner(Worker):
 
     return rewards
 
-  def _update_model(self, perturbations: List[float], rewards: List[float]) -> None:
+  def _update_model(self,
+                    perturbations: List[float],
+                    rewards: List[float]) -> None:
     """Update the model given a list of perturbations and rewards."""
     self._model_weights = self._blackbox_opt.run_step(
         perturbations=np.array(perturbations),
@@ -210,7 +216,7 @@ class BlackboxLearner(Worker):
         current_input=self._model_weights,
         current_value=np.mean(rewards))
 
-  def _log_rewards(self, rewards: List[float]):
+  def _log_rewards(self, rewards: List[float]) -> None:
     """Log reward to console."""
     logging.info('Train reward: [%f]', np.mean(rewards))
 
@@ -253,9 +259,12 @@ class BlackboxLearner(Worker):
     logging.info('Saving the model.')
     self._policy_saver_fn(
         parameters=self._model_weights,
-        policy_name='iteration{}'.format(self._step))
+        policy_name=f'iteration{self._step}')
 
-  def _get_results(self, pool: local_worker_manager.LocalWorkerPoolManager, perturbations: List[bytes]) -> Tuple[List[float], List[float], List[float]]:
+  def _get_results(self,
+                   pool: local_worker_manager.LocalWorkerPoolManager,
+                   perturbations: List[bytes]
+                   ) -> Tuple[List[float], List[float]]:
     if not self._samples:
       for _ in range(self._config.total_num_perturbations):
         self._samples.append(self._sampler.sample(
@@ -271,41 +280,48 @@ class BlackboxLearner(Worker):
       samples = [s for s in samples for s in (s, s)]
 
     compile_args = zip(perturbations, samples)
-  
+
     _, futures = buffered_scheduler.schedule_on_worker_pool(
           action=lambda w, v: w.temp_compile(v[0],v[1]),
           jobs=compile_args,
           worker_pool=pool)
-    
+
     # each perturbation has tag i and its negative (if antithetic) has tag -i
     requests: List[Request] = []
     for future, sample, tag in zip(futures, samples, tags):
       requests.append(Request(future, sample, tag))
 
-    early_exit = data_collector.EarlyExitChecker(num_modules=len(futures),
-                                                 deadline=self._deadline,
-                                                 thresholds=_DATA_THRESHOLDS)
+    early_exit = data_collector.EarlyExitChecker(
+      num_modules=len(futures),
+      deadline=self._deadline,
+      thresholds=_DATA_THRESHOLDS)
 
     # Collect next samples while we wait
-    with multiprocessing.pool.ThreadPool(self._config.total_num_perturbations) as tpool:
+    with multiprocessing.pool.ThreadPool(
+      self._config.total_num_perturbations) as tpool:
       self._samples = []
       for _ in range(self._config.total_num_perturbations):
-        self._samples.append(tpool.apply(self._sampler.sample, 
+        self._samples.append(tpool.apply(self._sampler.sample,
           [self._config.num_ir_repeats_within_worker]))
-    
+
     # Wait for exit conditions
-    early_exit.wait(lambda: sum([request.future.done() for request in requests]))
+    early_exit.wait(lambda:
+                    sum(request.future.done()
+                        for request in requests))
 
     # store the request if the future is done otherwise None
     raw_results = [_handle_future(request) for request in requests]
     # store only the completed requests
-    done_results = [result for result in raw_results if result is not None]
+    done_results = [result for result in raw_results
+                    if result is not None]
     logging.info('[%d] requests out of [%d] did not terminate.',
                  len(raw_results) - len(done_results), len(raw_results))
-    
+
     return raw_results, done_results
 
-  def _get_policy_as_bytes(self, perturbation: npt.NDArray[np.float32]) -> List[bytes]:
+  def _get_policy_as_bytes(self,
+                           perturbation: npt.NDArray[np.float32]
+                           ) -> List[bytes]:
     sm = tf.saved_model.load(self._tf_policy_path)
     # devectorize the perturbation
     policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
@@ -314,20 +330,22 @@ class BlackboxLearner(Worker):
     tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
 
     # convert to tflite
-    # TODO(abenalaast): replace following with policy_saver.convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str)
+    # TODO(abenalaast): replace following with
+    # policy_saver
+    # .convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str)
     tfl_dir = '/tmp/tfl'
     tf.io.gfile.makedirs(tfl_dir)
-    tfl_path = os.path.join(tfl_dir, "model.tflite")
+    tfl_path = os.path.join(tfl_dir, 'model.tflite')
     converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
     converter.target_spec.supported_ops = [
         tf.lite.OpsSet.TFLITE_BUILTINS,
     ]
     tfl_model = converter.convert()
-    with tf.io.gfile.GFile(tfl_path, "wb") as f:
-        f.write(tfl_model)
+    with tf.io.gfile.GFile(tfl_path, 'wb') as f:
+      f.write(tfl_model)
 
     # copy json to tmp dir
-    json_file = "output_spec.json"
+    json_file = 'output_spec.json'
     src_json = os.path.join(self._tf_policy_path, json_file)
     tf.io.gfile.copy(src_json, os.path.join(tfl_dir, json_file), True)
 
@@ -343,7 +361,8 @@ class BlackboxLearner(Worker):
     initial_perturbations = self._get_perturbations()
     # positive-negative pairs
     if self._config.est_type == 'antithetic':
-      initial_perturbations = [p for p in initial_perturbations for p in (p, -p)]
+      initial_perturbations = [p for p in initial_perturbations
+                               for p in (p, -p)]
 
     # convert to bytes for compile job
     perturbations_as_bytes = []
@@ -357,7 +376,7 @@ class BlackboxLearner(Worker):
     logging.info('Pruned [%d]', num_pruned)
     min_num_rewards = math.ceil(_SKIP_STEP_SUCCESS_RATIO *
                                       len(raw_results))
-    if (len(rewards) < min_num_rewards):
+    if len(rewards) < min_num_rewards:
       logging.warning(
           'Skipping the step, too many requests failed: %d of %d '
           'train requests succeeded (required: %d)',

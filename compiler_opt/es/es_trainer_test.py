@@ -14,8 +14,8 @@
 # limitations under the License.
 """Tests for ES trainer."""
 
-from absl.testing import absltest
-from tf_agents.system import system_multiprocessing as multiprocessing
+# from absl.testing import absltest
+# from tf_agents.system import system_multiprocessing as multiprocessing
 # from compiler_opt.es import es_trainer, es_trainer_simple
 
 

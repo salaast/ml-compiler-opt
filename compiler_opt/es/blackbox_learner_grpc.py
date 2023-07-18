@@ -10,7 +10,6 @@ import multiprocessing.pool
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-import tf_agents  # Required for importing SM
 from typing import Any, Callable, List, Tuple
 
 from compiler_opt.distributed import buffered_scheduler

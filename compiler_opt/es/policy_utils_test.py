@@ -21,7 +21,7 @@ class ConfigTest(absltest.TestCase):
     problem_config = registry.get_configuration(implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='/usr/local/google/home/abenalaast/ml-compiler-opt/compiler_opt/rl/inlining/vocab/',
+      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
       with_sqrt = False, with_z_score_normalization = False)
     layers = tf.nest.map_structure(
       creator,
@@ -50,7 +50,7 @@ class ConfigTest(absltest.TestCase):
       implementation=RegallocEvictionConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = regalloc_config.get_observation_processing_layer_creator(
-      quantile_file_dir='/usr/local/google/home/abenalaast/ml-compiler-opt/compiler_opt/rl/regalloc/vocab',
+      quantile_file_dir='compiler_opt/rl/regalloc/vocab',
       with_sqrt = False, with_z_score_normalization = False)
     layers = tf.nest.map_structure(
       creator,
@@ -82,7 +82,7 @@ class VectorTest(absltest.TestCase):
     problem_config = registry.get_configuration(implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='/usr/local/google/home/abenalaast/ml-compiler-opt/compiler_opt/rl/inlining/vocab/',
+      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
       with_sqrt = False, with_z_score_normalization = False)
     layers = tf.nest.map_structure(
       creator,
@@ -127,7 +127,7 @@ class VectorTest(absltest.TestCase):
       implementation=InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     creator = inlining_config.get_observation_processing_layer_creator(
-      quantile_file_dir='/usr/local/google/home/abenalaast/ml-compiler-opt/compiler_opt/rl/inlining/vocab/',
+      quantile_file_dir='compiler_opt/rl/inlining/vocab/',
       with_sqrt = False, with_z_score_normalization = False)
     layers = tf.nest.map_structure(
       creator,
